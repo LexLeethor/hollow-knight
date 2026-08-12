@@ -1,0 +1,7 @@
+# Ignore the huge Unity data file so push stays under GitHub size limits
+Build/hktruffled.data
+
+# Ignore typical temp files
+*.log
+*.tmp
+.DS_Store
