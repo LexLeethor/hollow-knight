@@ -80,7 +80,7 @@
   </style>
 </head>
 <body>
-  <div id="loading-text">truffed.lol</div>
+  <div id="loading-text">Git Gud</div>
   <div id="unity-mobile-warning">WebGL not supported on mobile</div>
   <canvas id="unity-canvas"></canvas>
   <div id="fps-graph" style="display: none;">
@@ -88,81 +88,10 @@
   </div>
 
   <script>
-    const loadingText = document.getElementById("loading-text");
-    const canvas = document.getElementById("unity-canvas");
-    const mobileWarning = document.getElementById("unity-mobile-warning");
-    const fpsGraph = document.getElementById("fps-graph");
-    const fpsCanvas = document.getElementById("fps-canvas");
-
-    const maxHistoryLength = 90;
-    const fpsHistory = [];
-    fpsCanvas.width = 180;
-    fpsCanvas.height = 50;
-    const ctx = fpsCanvas.getContext('2d');
-
-    let isHidden = false;
-    let hideTimeoutId;
-    let lastFrameTime = performance.now();
-    let frameCount = 0;
-    let currentFps = 60;
-    let saveButton;
-
-    // FPS Counter Loop
-    function updateFps() {
-      const currentTime = performance.now();
-      const deltaTime = (currentTime - lastFrameTime) / 1000;
-      lastFrameTime = currentTime;
-
-      currentFps = deltaTime > 0 ? 1 / deltaTime : 60;
-      frameCount++;
-
-      if (frameCount % 3 === 0) {
-        fpsHistory.push(currentFps);
-        if (fpsHistory.length > maxHistoryLength) {
-          fpsHistory.shift();
-        }
-
-        ctx.clearRect(0, 0, 180, 50);
-
-        for (let i = 0; i < fpsHistory.length; i++) {
-          const fpsValue = fpsHistory[i];
-          const height = Math.min(fpsValue / 60, 1) * 35;
-          const color = fpsValue > 50 ? '#0f0' : fpsValue > 30 ? '#fa0' : '#f33';
-
-          ctx.fillStyle = color;
-          ctx.fillRect(i * 2, 50 - height, 1.8, height);
-        }
-
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 13px monospace';
-        ctx.shadowColor = '#000';
-        ctx.shadowBlur = 4;
-        ctx.fillText(Math.round(currentFps) + ' FPS', 6, 16);
-        ctx.shadowBlur = 0;
-      }
-
-      requestAnimationFrame(updateFps);
-    }
-
-    // Toggle overlay visibility on user activity
-    function showOverlay() {
-      isHidden = false;
-      fpsGraph.classList.remove('hidden');
-      if (saveButton) saveButton.classList.remove('hidden');
-    }
-
-    function resetHideTimer() {
-      clearTimeout(hideTimeoutId);
-      if (!isHidden) {
-        isHidden = true;
-        fpsGraph.classList.add('hidden');
-        if (saveButton) saveButton.classList.add('hidden');
-      }
-      hideTimeoutId = setTimeout(showOverlay, 5000);
-    }
-
-    document.addEventListener('keydown', resetHideTimer);
-
+    
+    canvas = document.getElementById("unity-canvas");
+    loadingText = document.getElementById("loading-text");
+    mobileWarning = document.getElementById("unity-mobile-warning");
     // Mobile Viewport Check
     if (/iPhone|iPad|iPod|Android/i.test(navigator.userAgent)) {
       const meta = document.createElement('meta');
@@ -174,6 +103,7 @@
       setTimeout(() => mobileWarning.style.display = "none", 5000);
     }
 
+    
     // Main Unity WebGL initialization using combined files
     (async () => {
       const loaderScript = document.createElement("script");
@@ -188,94 +118,19 @@
           companyName: "Team Cherry",
           productName: "Hollow Knight",
           productVersion: "1.0"
-        }).then(() => {
+        }).then((instance) => {
+          unityInstance = instance;
+          window.unityInstance = instance;
+          window.Module = instance.Module;
+          window.FS = instance.Module && instance.Module.FS;
           loadingText.remove();
-          addSaveButton();
-          fpsGraph.style.display = 'block';
-          updateFps();
+
         }).catch(alert);
       };
 
       document.body.appendChild(loaderScript);
     })();
 
-    // Save Data Handler (IndexedDB Export)
-    function addSaveButton() {
-      saveButton = document.createElement('button');
-      saveButton.className = 'savebtn';
-      saveButton.textContent = 'download';
-      saveButton.onclick = saveDownloadHandler;
-      document.body.appendChild(saveButton);
-    }
-
-    function openDatabase(name) {
-      return new Promise((resolve, reject) => {
-        const request = indexedDB.open(name);
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-    }
-
-    function getAllEntries(db, storeName) {
-      return new Promise((resolve, reject) => {
-        const transaction = db.transaction([storeName], 'readonly');
-        const store = transaction.objectStore(storeName);
-        const request = store.getAll();
-        request.onsuccess = () => resolve(request.result);
-        request.onerror = () => reject(request.error);
-      });
-    }
-
-    async function saveDownloadHandler() {
-      try {
-        const databases = await indexedDB.databases();
-        let saveData = {};
-        let foundData = false;
-
-        for (const info of databases) {
-          const db = await openDatabase(info.name);
-
-          for (const storeName of db.objectStoreNames) {
-            try {
-              const data = await getAllEntries(db, storeName);
-              if (data && data.length > 0) {
-                const formattedData = data.map(item => {
-                  if (item.contents && item.contents instanceof Uint8Array) {
-                    return { ...item, contents: Array.from(item.contents) };
-                  }
-                  return item;
-                });
-                saveData[`${info.name}/${storeName}`] = formattedData;
-                foundData = true;
-              }
-            } catch (err) {
-              console.error(err);
-            }
-          }
-          db.close();
-        }
-
-        if (!foundData) {
-          alert('No save found');
-          return;
-        }
-
-        const jsonString = JSON.stringify(saveData);
-        const blob = new Blob([jsonString], { type: 'application/octet-stream' });
-        const url = URL.createObjectURL(blob);
-
-        const downloadLink = document.createElement('a');
-        downloadLink.href = url;
-        downloadLink.download = 'hk_save.dat';
-        document.body.appendChild(downloadLink);
-        downloadLink.click();
-        document.body.removeChild(downloadLink);
-
-        URL.revokeObjectURL(url);
-      } catch (err) {
-        alert('Download failed: ' + err.message);
-      }
-    }
   </script>
 </body>
 </html>
